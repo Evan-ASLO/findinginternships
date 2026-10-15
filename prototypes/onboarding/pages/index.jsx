@@ -3,7 +3,7 @@ import { concepts } from "../lib/tour-data.mjs";
 
 export default function Comparison() {
   return <main className="comparison">
-    <div className="comparison-heading"><span className="wordmark">Internship & Coffee Chat</span><span className="preview-stamp">Local prototypes · fictional only</span></div>
+    <div className="comparison-heading"><span className="wordmark"><img src="/brand/finding-internships.png" width="32" height="32" alt="" aria-hidden="true" className="brand-image" /> Finding Internships</span><span className="preview-stamp">Local prototypes · fictional only</span></div>
     <h1>Three ways to<br />begin your journey.</h1>
     <p className="comparison-intro">Same honest tools. Three different ways to experience them. Open a preview, scroll through the four stages, and try the sample interactions.</p>
     <div className="concept-list">

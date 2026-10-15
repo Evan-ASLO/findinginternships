@@ -1,6 +1,6 @@
 # Three Next.js onboarding prototypes
 
-Local-only comparison for Internship & Coffee Chat, authored in **Next.js 16.4.0 / React 19.2.0 / JavaScript + JSX**, with native CSS/SVG/scroll/rAF. No motion package, external assets, runtime CDN, analytics or connected services.
+Local-only comparison for Finding Internships, authored in **Next.js 16.4.0 / React 19.2.0 / JavaScript + JSX**, with native CSS/SVG/scroll/rAF. No motion package, external assets, runtime CDN, analytics or connected services.
 
 Uses Next's Pages router/static generation and standard custom Document so the mandated early theme detection is the first emitted script. Three compositions share truthful data/state helpers but use distinct layouts and interactions. PRODUCT.md, DIRECTIONS.md and DESIGN.md are artifact-only, not production authorities.
 

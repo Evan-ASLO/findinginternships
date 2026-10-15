@@ -59,7 +59,7 @@ test("loads local helpers and the SPA in dependency order", () => {
 	assert.ok(journey > source);
 	assert.ok(analytics > journey);
 	assert.ok(app > analytics);
-	assert.match(index, /Internship & Coffee Chat \| Toronto career workspace/);
+	assert.match(index, /Finding Internships \| Toronto career workspace/);
 	assert.match(index, /<noscript>/);
 	assert.doesNotMatch(index, /cdn|unpkg|jsdelivr/i);
 });
@@ -71,7 +71,7 @@ test("matches the warm job-first navigation and account setup contract", () => {
 		assert.match(app, new RegExp(`\\["${view}",\\s*"${label}"`, "m"));
 	}
 	assert.match(app, /class="top-nav"/);
-	assert.match(app, /<strong>Internship & Coffee Chat<small>/);
+	assert.match(app, /<strong>Finding Internships<small>/);
 	assert.match(app, /class="account-menu"/);
 	assert.match(app, /data-nav="settings">Setup & profile/);
 	assert.match(app, /data-nav="analytics">Analytics/);

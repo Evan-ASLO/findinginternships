@@ -16,7 +16,7 @@ function fixture(ready = true) {
 	disclosure.querySelectorAll = () => [tab];
 	for (const id of ["owner-notify-email", "beta-approve-email-form", "beta-approve-email"]) node(id);
 	const f = { session: { authenticated: true, isBetaAdmin: true, user: { id: "owner-a", email: "owner-a@example.test" } }, calls: [], nodes, panel };
-	f.access = { gmailConfigured: ready, acceptanceTemplate: { subject: "You're approved for Internship & Coffee Chat", body: "Sign in with the approved Google email. <script>untrusted</script>" },
+	f.access = { gmailConfigured: ready, acceptanceTemplate: { subject: "You're approved for Finding Internships", body: "Sign in with the approved Google email. <script>untrusted</script>" },
 		access: ["QUEUED", "SENDING", "SENT", "FAILED", "UNCERTAIN"].map((status) => ({
 			email: `${status.toLowerCase()}@example.test`, status: "APPROVED", updatedAt: "2026-10-09",
 			notification: { id: `${status}-id`, status, senderIsYou: true, failureCode: null, sentAt: status === "SENT" ? "2026-10-09" : null },

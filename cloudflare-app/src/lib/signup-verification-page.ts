@@ -5,14 +5,25 @@ export function signupVerificationPage(mode: "pending" | "verify", enabled: bool
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <meta name="robots" content="noindex,nofollow"/><meta name="referrer" content="no-referrer"/>
 <title>${mode === "verify" ? "Confirm your email" : "Check your email"} | Finding Internships</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/brand/finding-internships-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/brand/finding-internships-16.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="/brand/finding-internships-192.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="/brand/finding-internships-180.png" />
+<meta name="application-name" content="Finding Internships" />
+<meta name="apple-mobile-web-app-title" content="Finding Internships" />
+<meta property="og:site_name" content="Finding Internships" />
+<meta property="og:image" content="https://findinginternships.com/brand/finding-internships.png" />
+<meta property="og:image:width" content="512" />
+<meta property="og:image:height" content="512" />
+<meta property="og:image:alt" content="Finding Internships logo" />
 <script src="/theme.js?v=20261009-critique-1"></script>
-<link rel="stylesheet" href="/styles.css?v=20261015-dashboard-layout-1"/>
+<link rel="stylesheet" href="/styles.css?v=20261015-finding-brand-1"/>
 <link rel="stylesheet" href="/job-first.css?v=20261015-dashboard-layout-1"/>
-<link rel="stylesheet" href="/signup-verification.css?v=20261015-1"/>
+<link rel="stylesheet" href="/signup-verification.css?v=20261015-finding-brand-1"/>
 ${enabled ? '<script src="/signup-verification.js?v=20261015-self-service-1" defer></script>' : ""}
 </head>
 <body class="signup-proof-page" data-signup-view="${mode}">
-<header class="signup-proof-brand"><a href="/">Internship &amp; Coffee Chat</a><span>Finding Internships</span></header>
+<header class="signup-proof-brand"><a href="/" class="signup-proof-brand-link"><img class="brand-mark brand-image" src="/brand/finding-internships.png" width="40" height="40" alt="" aria-hidden="true" /><span>Finding Internships</span></a></header>
 <main class="signup-proof-panel" aria-labelledby="signup-proof-title">
 <div class="signup-proof-mail" aria-hidden="true"><svg viewBox="0 0 48 48"><rect x="6" y="12" width="36" height="26" rx="3"/><path d="m7 14 17 13 17-13"/></svg></div>
 <h1 id="signup-proof-title">${enabled ? mode === "verify" ? "Confirm it’s your email." : "One more step: your email." : "Email verification is not enabled yet."}</h1>

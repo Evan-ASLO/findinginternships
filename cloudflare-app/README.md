@@ -1,4 +1,4 @@
-# Internship & Coffee Chat Cloudflare app
+# Finding Internships Cloudflare app
 
 This directory is the deployed Cloudflare Worker, D1 schema, queue consumer, tests, and no-build SPA for the combined internship-tracking and coffee-chat product. The warm, job-first interface puts **Find jobs → My jobs → People** in the primary navigation and phone bottom bar. Profile, provider setup, the setup guide and Analytics remain in the account menu; the coffee brand opens Home. Every result, tracking stage, source and draft is live account-scoped HTML, not a prototype record. The root Google Apps Script fallback is intentionally separate.
 

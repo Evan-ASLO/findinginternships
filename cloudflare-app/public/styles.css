@@ -4761,3 +4761,5 @@ body:has(dialog[open]) {
 		transform: none;
 	}
 }
+
+.brand-mark.brand-image, .tutorial-mark.brand-image { display: block; object-fit: contain; aspect-ratio: 1; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }

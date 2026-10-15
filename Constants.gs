@@ -1,5 +1,5 @@
 var APP = Object.freeze({
-  NAME: 'Coffee Chat Agent',
+  NAME: 'Finding Internships',
   VERSION: '2.0.0',
   PROPERTY_SPREADSHEET_ID: 'COFFEE_CHAT_SPREADSHEET_ID',
   PROPERTY_LAST_CRITERIA: 'COFFEE_CHAT_LAST_CRITERIA',

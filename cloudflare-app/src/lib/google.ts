@@ -61,7 +61,7 @@ export async function createTrackingSheet(
 	}>("https://sheets.googleapis.com/v4/spreadsheets", {
 		headers: { Authorization: `Bearer ${accessToken}` },
 		body: {
-			properties: { title: "Coffee Chat Agent CRM" },
+			properties: { title: "Finding Internships CRM" },
 			sheets: [
 				{ properties: { title: "Prospects" } },
 				{ properties: { title: "Activity" } },

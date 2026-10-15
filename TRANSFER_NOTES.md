@@ -98,7 +98,10 @@ They are separate from the vendored
 `cloudflare-app/public/adzuna_logo.png` with its attribution instructions.
 The public demonstration's `cloudflare-app/public/launch/` video, poster and
 captions are a further distinct media category, not a vendor license.
-The unchanged public demo is labelled fictional. Media sample inspection and
+The public demo retains its fictional story; the separate branding refinement
+rerenders its title/end/product-header identity as Finding Internships with the
+supplied logo, preserves the exact original synthesized audio stream and updates
+only matching title-caption names. See `BRANDING.md`. Media sample inspection and
 textual credential scanning are not a comprehensive legal or forensic privacy
 certification; general transfer/employer permissions remain for the user to establish.
 

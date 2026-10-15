@@ -1,6 +1,6 @@
 # Preview-only onboarding comparison
 
-Three working Next.js / JavaScript proposals for Internship & Coffee Chat. This artifact is not production authority and does not replace the no-build Cloudflare app, its data, access gates or source pipelines.
+Three working Next.js / JavaScript proposals for Finding Internships. This artifact is not production authority and does not replace the no-build Cloudflare app, its data, access gates or source pipelines.
 
 Users requesting access and users on their first approved login should understand four tools: Find jobs; private save/current-stage/notes tracking in My jobs; People with separate preparation and actual-draft/email approvals plus optional resume attachment; manual recording of a possible outcome. Canada eligibility is role/programme-specific. Saved/Archived are not applications. Replies are not automatically coffee chats. Offers/return offers are not promised and current statuses are not history.
 

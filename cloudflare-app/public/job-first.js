@@ -144,12 +144,12 @@
 		const dialog = modal("job-first-demo", "A little closer to what's next", `
 			<p class="notice">This existing video is a <strong>fictional concept demonstration</strong>, not live jobs, provider results, charges or sent emails. The real workspace uses your own account and requires separate person and exact-draft approvals.</p>
 			<video controls playsinline preload="none" poster="/launch/poster.jpg" aria-label="Fictional concept demonstration">
-				<source src="/launch/internship-coffee-chat-launch-dynamic.mp4" type="video/mp4"/>
-				<track kind="captions" src="/launch/captions.vtt" srclang="en" label="English" default/>
+				<source src="/launch/internship-coffee-chat-launch-dynamic.mp4?v=20261015-finding-brand-1" type="video/mp4"/>
+				<track kind="captions" src="/launch/captions.vtt?v=20261015-finding-brand-1" srclang="en" label="English" default/>
 			</video><div class="demo-playback-controls" aria-label="Demo playback controls">
 				<label for="demo-playback-speed">Playback speed<select id="demo-playback-speed">${[0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => `<option value="${rate}" ${rate === 1 ? "selected" : ""}>${rate}x</option>`).join("")}</select></label>
 			</div><p id="demo-playback-status" role="status"></p>
-			<p><a href="/launch/captions.vtt">Read the demonstration captions</a>. No new video was generated for this release.</p>`);
+			<p><a href="/launch/captions.vtt?v=20261015-finding-brand-1">Read the demonstration captions</a>. The fictional demonstration has updated Finding Internships branding; its story and original music are unchanged.</p>`);
 		const video = dialog.querySelector("video"), speed = dialog.querySelector("#demo-playback-speed"), status = dialog.querySelector("#demo-playback-status");
 		const refresh = () => {
 			speed.disabled = Boolean(video.error);

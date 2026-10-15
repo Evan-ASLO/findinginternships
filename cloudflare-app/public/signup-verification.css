@@ -26,3 +26,7 @@ details.signup-proof-help p { margin: 12px 0; }
 	.signup-proof-actions > * { width: 100%; }
 	.signup-proof-footer { width: calc(100% - 32px); }
 }
+
+.signup-proof-brand .signup-proof-brand-link { display: inline-flex; gap: 12px; }
+.signup-proof-brand-link .brand-image { width: 40px; height: 40px; flex: 0 0 40px; }
+.signup-proof-brand-link span { color: var(--cp-text); }

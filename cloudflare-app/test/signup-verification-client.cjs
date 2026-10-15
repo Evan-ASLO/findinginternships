@@ -3,7 +3,7 @@ const root = path.join(__dirname, ".."), read = (file) => fs.readFileSync(path.j
 test("verification page is standalone self-hosted UI, never the authenticated app or a tracker", () => {
 	const page = read("src/lib/signup-verification-page.ts");
 	assert.match(page, /noindex,nofollow/); assert.match(page, /no-referrer/);
-	assert.match(page, /signup-verification\.js/); assert.doesNotMatch(page, /src="\/app\.js|owner-loader|onboarding\.js|https:\/\//);
+	assert.match(page, /signup-verification\.js/); assert.doesNotMatch(page, /src="\/app\.js|owner-loader|onboarding\.js|(?:src|href)="https:\/\//);
 	assert.match(page, /Existing users do not need this additional verification/);
 	assert.match(page, /original signup browser to finish signup and open your workspace/);
 	assert.match(page, /No owner approval is needed for ordinary verified signup/);
@@ -40,6 +40,6 @@ test("source config requires preserving installed runtime flag/secret; policy ad
 	assert.equal(config.vars.ENABLE_SIGNUP_EMAIL_VERIFICATION, undefined);
 	assert.equal(config.vars.RESEND_API_KEY, undefined);
 	assert.match(read("public/privacy.html"), /Resend receives only the/);
-	assert.match(read("public/index.html"), /app\.js\?v=20261015-self-service-1/);
+	assert.match(read("public/index.html"), /app\.js\?v=20261015-finding-brand-1/);
 	assert.match(read("public/owner-admin.js"), /Automatic verified signup does not queue an acceptance email/);
 });

@@ -205,9 +205,9 @@ function render() {
 		<a class="skip-link" href="#main-content">Skip to main content</a>
 		<div class="app-frame view-${state.tab} ${state.tab === "jobs" && state.selectedJob ? "job-detail-open" : ""} ${state.mobileNavOpen ? "nav-open" : ""}">
 			<header class="topbar">
-				<button class="brand brand-button" data-nav="${authenticated ? "home" : "jobs"}" aria-label="Internship & Coffee Chat home">
-					<span class="brand-mark" aria-hidden="true">${icon("cup")}</span>
-					<strong>Internship & Coffee Chat<small>A little closer to what's next</small></strong>
+				<button class="brand brand-button" data-nav="${authenticated ? "home" : "jobs"}" aria-label="Finding Internships home">
+					<img class="brand-mark brand-image" src="/brand/finding-internships.png" width="40" height="40" alt="" aria-hidden="true" />
+					<strong>Finding Internships<small>A little closer to what's next</small></strong>
 				</button>
 				<button class="mobile-nav-toggle" id="mobile-nav-toggle" aria-expanded="${state.mobileNavOpen}" aria-controls="primary-navigation">
 					${icon("menu")}<span class="sr-only">Toggle navigation</span>
@@ -331,7 +331,7 @@ function renderBetaLanding() {
 	app.innerHTML = `
 		<section class="beta-landing">
 			<div class="beta-landing-brand">
-				<div class="brand"><span class="brand-mark" aria-hidden="true">${icon("cup")}</span><strong>Internship & Coffee Chat</strong></div>
+				<div class="brand"><img class="brand-mark brand-image" src="/brand/finding-internships.png" width="40" height="40" alt="" aria-hidden="true" /><strong>Finding Internships</strong></div>
 				<span>${selfService ? "Google-verified workspace" : state.session?.betaAccessMode === "ALLOWLIST" ? "Private Toronto beta" : "Toronto career workspace"}</span>
 				<a href="#home" data-nav="home" aria-current="page">Home</a>
 				${state.session?.betaAccessMode === "ALLOWLIST" ? "" : '<a href="#find-jobs" data-nav="jobs">Find jobs</a>'}
@@ -1242,7 +1242,7 @@ function renderSettings() {
 			<div class="reference-hero-copy">
 				<p class="eyebrow">Personalize your experience</p>
 				<h1>Setup &amp; profile</h1>
-				<p>Manage the account, drafting preferences, private data, and real integrations that power Internship & Coffee Chat.</p>
+				<p>Manage the account, drafting preferences, private data, and real integrations that power Finding Internships.</p>
 			</div>
 		</section>
 		<div class="settings-reference-grid">
@@ -1305,7 +1305,7 @@ function renderSettings() {
 			</section>
 			<section class="settings-reference-card about-card">
 				<div class="settings-card-heading"><span>${icon("info")}</span><div><h2>About</h2><p>Version and support information.</p></div></div>
-				<div class="about-product"><span class="brand-mark">CC</span><div><strong>Internship & Coffee Chat</strong><span>Private beta · version 0.2.0</span><small>Built for thoughtful, approval-first career progress.</small></div></div>
+				<div class="about-product"><img class="brand-mark brand-image" src="/brand/finding-internships.png" width="40" height="40" alt="" aria-hidden="true" /><div><strong>Finding Internships</strong><span>Private beta · version 0.2.0</span><small>Built for thoughtful, approval-first career progress.</small></div></div>
 				<div class="actions"><a class="button" href="mailto:evanastonlowe@gmail.com">${icon("mail")} Get support</a><button id="settings-logout" class="secondary">${icon("logout")} Sign out</button></div>
 			</section>
 			<div class="settings-notebook-art" aria-hidden="true"></div>

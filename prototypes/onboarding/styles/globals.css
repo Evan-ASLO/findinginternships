@@ -350,3 +350,6 @@ svg { display: block; }
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
   .tour-map .chapter-demo { transform: none; }
 }
+
+.brand-image { object-fit: contain; aspect-ratio: 1; flex-shrink: 0; }
+.wordmark { display: inline-flex; align-items: center; gap: 12px; }

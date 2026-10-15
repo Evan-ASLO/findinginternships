@@ -16,8 +16,8 @@ export function assertNotificationSender(input: z.infer<typeof betaNotificationI
 }
 export function acceptanceTemplate() {
 	return {
-		subject: "You're approved for Internship & Coffee Chat",
-		body: "Your access to Internship & Coffee Chat has been approved.\n\nOpen https://coffee-chat-agent.evanastonlowe.workers.dev and sign in with the Google email address that was approved.\n\nThis is an access notification, not an outreach email.",
+		subject: "You're approved for Finding Internships",
+		body: "Your access to Finding Internships has been approved.\n\nOpen https://coffee-chat-agent.evanastonlowe.workers.dev and sign in with the Google email address that was approved.\n\nThis is an access notification, not an outreach email.",
 	};
 }
 

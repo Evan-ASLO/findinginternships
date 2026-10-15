@@ -52,7 +52,7 @@ function getSpreadsheet_() {
   try {
     return SpreadsheetApp.openById(id);
   } catch (error) {
-    throw new Error('The Coffee Chat Agent spreadsheet cannot be opened: ' + error.message);
+    throw new Error('The Finding Internships spreadsheet cannot be opened: ' + error.message);
   }
 }
 

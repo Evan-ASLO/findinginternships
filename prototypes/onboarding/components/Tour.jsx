@@ -61,7 +61,7 @@ export default function Tour({ concept }) {
     <span hidden dangerouslySetInnerHTML={{ __html: `<!-- ${info.contract} -->` }} />
     <a className="skip-link" href="#access" onClick={(e) => jump(e, "access")}>Skip tour to preview access</a>
     <header className="preview-header">
-      <Link className="brand" href="/"><Cup /><span>Internship & Coffee Chat<small>Local onboarding prototypes</small></span></Link>
+      <Link className="brand" href="/"><img src="/brand/finding-internships.png" width="32" height="32" alt="" aria-hidden="true" className="brand-image" /><span>Finding Internships<small>Local onboarding prototypes</small></span></Link>
       <div className="header-actions"><Link href="/" className="comparison-back">Compare all three</Link><button onClick={switchTheme} aria-label={`Preview ${theme === "light" ? "dark" : "light"} theme`}>{theme === "light" ? "Dark" : "Light"}</button></div>
     </header>
     <div className="preview-context"><span>Simulation only · no accounts or providers connected</span><label htmlFor="preview-context">Preview context<select id="preview-context" value={context} onChange={(e) => switchContext(e.target.value)}><option value="request">Requesting access</option><option value="welcome">First approved login</option></select></label></div>
@@ -104,7 +104,7 @@ export default function Tour({ concept }) {
       <h2 id="access" data-progress-stop tabIndex="-1">{context === "request" ? "See yourself using it?" : "You have seen the tools. Make the next step yours."}</h2>
       <p className="finish-copy">You have reached the end of the tool tour—not an application milestone. Offers and return offers are possible outcomes, never guaranteed. You record them yourself.</p>
       <div className="access-grid">
-        <div className="access-letter"><Cup /><h3>A little closer to what&apos;s next.</h3><p>Find an opportunity, keep a private next-step note and introduce yourself thoughtfully. The workspace supports your decisions; it does not make them for you.</p><button className="secondary" onClick={replay}>Replay & reset sample actions</button><Link href="/">Back to the three previews</Link></div>
+        <div className="access-letter"><img src="/brand/finding-internships.png" width="40" height="40" alt="" aria-hidden="true" className="brand-image" /><h3>A little closer to what&apos;s next.</h3><p>Find an opportunity, keep a private next-step note and introduce yourself thoughtfully. The workspace supports your decisions; it does not make them for you.</p><button className="secondary" onClick={replay}>Replay & reset sample actions</button><Link href="/">Back to the three previews</Link></div>
         {context === "request" ? <form className="access-form" onSubmit={(e) => { e.preventDefault(); setSubmitted(true); }}>
           <h3>Try an access request</h3><p>This form is a local simulation. Use the supplied fictional details; no information leaves this page.</p>
           <label htmlFor="sample-name">Sample name<input id="sample-name" defaultValue="Alex Example" required maxLength="100" autoComplete="off" /></label>

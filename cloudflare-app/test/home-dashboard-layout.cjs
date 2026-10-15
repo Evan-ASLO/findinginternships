@@ -36,6 +36,6 @@ test("layout-only change retains all role/journey content and actions and bumps 
 	const start = app.indexOf("function homeRecentJobCard("), end = app.indexOf("\nfunction ", start + 1), card = app.slice(start, end);
 	for (const entry of ["View posting", "data-job-save", "Mark applied", "jobContactAction(job)", "JobSourceUi.sourceLabel", "job.postedAt", "job.industry"]) assert.ok(card.includes(entry));
 	assert.match(app, /id="journey-reset"/); assert.match(app, /renderHomeJourneyDetail\(snapshot\)/);
-	assert.match(index, /styles\.css\?v=20261015-dashboard-layout-1/);
+	assert.match(index, /styles\.css\?v=20261015-finding-brand-1/);
 	assert.match(index, /job-first\.css\?v=20261015-dashboard-layout-1/);
 });

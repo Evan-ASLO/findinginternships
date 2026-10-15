@@ -18,7 +18,7 @@
 		{
 			id: "welcome", chapter: 0, view: "home", target: "home-summary",
 			title: "A small tour. Your own workspace.",
-			body: () => `<p>Welcome to <strong>Internship &amp; Coffee Chat</strong>. First, learn which optional connections power networking. Then explore Find jobs, My jobs and People, with setup under your account menu.</p>
+			body: () => `<p>Welcome to <strong>Finding Internships</strong>. First, learn which optional connections power networking. Then explore Find jobs, My jobs and People, with setup under your account menu.</p>
 				<p>You can browse Jobs, save roles, and track applications <strong>without any API keys</strong>. Nothing in this tutorial searches for people, generates drafts, sends email, or analyzes a resume.</p>
 				<p>API keys are private passwords for a service. Use <strong>your own provider accounts</strong>, not the app owner's keys. Any usage costs and quotas belong to your provider account.</p>`,
 		},
@@ -81,7 +81,7 @@
 			id: "home-summary", chapter: 1, view: "home", target: "home-summary",
 			title: "Home: your live starting point",
 			body: () => `<p>Home search shows the total early-career roles in the catalog. Your journey shows your account's saved roles, current applications, and people tracked. Recent roles and search are shortcuts into Find jobs.</p>
-				<p>Use the primary navigation for <strong>Find jobs, My jobs and People</strong>. On a phone these remain visible in the bottom bar. Open the account menu for <strong>Setup &amp; profile, Setup guide, Analytics and Home</strong>, or select the coffee brand for Home. No API keys are needed for browsing and tracking.</p>`,
+				<p>Use the primary navigation for <strong>Find jobs, My jobs and People</strong>. On a phone these remain visible in the bottom bar. Open the account menu for <strong>Setup &amp; profile, Setup guide, Analytics and Home</strong>, or select the Finding Internships logo for Home. No API keys are needed for browsing and tracking.</p>`,
 		},
 		{
 			id: "home-journey", chapter: 1, view: "home", target: "home-journey",
@@ -315,7 +315,7 @@
 			document.body.classList.add("tutorial-open");
 			root.innerHTML = `<div class="tutorial-spotlight" aria-hidden="true" hidden></div>
 				<section class="tutorial-panel" data-tutorial-step="${step.id}" data-tutorial-status="${progress.status}" role="dialog" aria-modal="false" aria-labelledby="tutorial-title" aria-describedby="tutorial-progress" aria-busy="${busy}">
-					<header class="tutorial-header"><span class="tutorial-mark" aria-hidden="true">CC</span><span>Workspace tutorial</span><button class="icon-button" data-tutorial-action="pause" aria-label="Continue later (save and close tutorial)" ${busy ? "disabled" : ""}>×</button></header>
+					<header class="tutorial-header"><img class="tutorial-mark brand-image" src="/brand/finding-internships.png" width="32" height="32" alt="" aria-hidden="true" /><span>Workspace tutorial</span><button class="icon-button" data-tutorial-action="pause" aria-label="Continue later (save and close tutorial)" ${busy ? "disabled" : ""}>×</button></header>
 					<ol class="tutorial-chapters" aria-label="Tutorial chapters">${CHAPTERS.map((chapter, chapterNumber) => `<li ${step.chapter === chapterNumber ? 'aria-current="step"' : ""}><span aria-hidden="true">${chapterNumber + 1}</span>${chapter}</li>`).join("")}</ol>
 					<p id="tutorial-progress" class="tutorial-progress">Chapter ${step.chapter + 1} of 2 · Step ${chapterIndex + 1} of ${chapterSteps.length}</p>
 					<progress max="${STEPS.length}" value="${index + 1}" aria-label="Overall tutorial progress"></progress>

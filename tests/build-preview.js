@@ -10,7 +10,7 @@ const minutesAgo = (minutes) => new Date(now.getTime() - minutes * 60 * 1000).to
 const daysAgo = (days) => new Date(now.getTime() - days * 24 * 60 * 60 * 1000).toISOString();
 
 const state = {
-  appName: 'Coffee Chat Agent',
+  appName: 'Finding Internships',
   version: '2.0.0',
   setupRequired: false,
   accountEmail: 'you@gmail.com',
