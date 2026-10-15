@@ -1,0 +1,734 @@
+(function (root, factory) {
+	const api = factory();
+	if (typeof module === "object" && module.exports) module.exports = api;
+	if (root) root.OwnerAdmin = api;
+})(typeof window === "undefined" ? null : window, function () {
+	"use strict";
+
+	function initialState() {
+		return {
+			open: false, section: "activity", days: "28", asOf: "",
+			activity: null, activityStatus: "idle", activityError: "", accountCursors: [null],
+			events: null, eventsStatus: "idle", eventsError: "", eventCursors: [null],
+			userFilter: null, action: "ALL",
+			roster: null, rosterStatus: "idle", rosterError: "", rosterCursors: [null],
+			reports: null, reportsStatus: "idle", reportsError: "", reportCursors: [null], reportFilter: "OPEN", reportsMutating: false,
+			access: null, accessStatus: "idle", accessError: "",
+			notifyEmail: null,
+			mutating: false, mutationError: "", result: null, bulk: null,
+		};
+	}
+
+	function create(options) {
+		const doc = options.document || globalThis.document;
+		const esc = options.escapeHtml;
+		const date = options.formatDate;
+		const number = (value) => Number(value).toLocaleString();
+		let state = initialState();
+		let identity = "";
+		let generation = 0;
+		let modal = null;
+		const requests = new Map();
+
+		function ownerKey() {
+			const session = options.getSession();
+			return session?.authenticated && session.isBetaAdmin === true
+				? `${session.user.id}|${session.user.email}` : "";
+		}
+
+		function clear() {
+			generation++;
+			for (const request of requests.values()) request.abort();
+			requests.clear();
+			closeDialog(true);
+			identity = "";
+			state = initialState();
+			doc?.getElementById("owner-controls")?.remove();
+		}
+
+		function syncSession() {
+			const next = ownerKey();
+			if (identity !== next) {
+				clear();
+				identity = next;
+			}
+			return Boolean(identity);
+		}
+
+		async function call(slot, path, init = {}) {
+			if (!syncSession()) return null;
+			requests.get(slot)?.abort();
+			const controller = new AbortController();
+			const turn = generation;
+			requests.set(slot, controller);
+			const current = () => !controller.signal.aborted && turn === generation && ownerKey() === identity &&
+				identity && requests.get(slot) === controller;
+			try {
+				const result = await options.api(path, { ...init, signal: controller.signal });
+				return current() ? result : null;
+			} catch (error) {
+				if (!current() || controller.signal.aborted) return null;
+				throw error;
+			} finally {
+				if (requests.get(slot) === controller) requests.delete(slot);
+			}
+		}
+
+		function render() {
+			if (!syncSession()) return "";
+			return `<details id="owner-controls" class="admin-disclosure" ${state.open ? "open" : ""}>
+				<summary>${options.icon("shield")}<span><strong>Owner tools</strong><small>Operational activity &amp; private-beta access</small></span>${options.icon("chevron-right")}</summary>
+				<div class="admin-settings">
+					<nav class="owner-tabs" aria-label="Owner tools">
+						<button id="owner-activity-tab" class="secondary" data-owner-section="activity" aria-pressed="${state.section === "activity"}">Activity</button>
+						<button id="owner-beta-tab" class="secondary" data-owner-section="beta" aria-pressed="${state.section === "beta"}">Beta access</button>
+						<button id="owner-reports-tab" class="secondary" data-owner-section="reports" aria-pressed="${state.section === "reports"}">Bug reports</button>
+					</nav>
+					<div id="owner-panel">${panelHtml()}</div>
+				</div>
+			</details>`;
+		}
+
+		function wire() {
+			const disclosure = doc?.getElementById("owner-controls");
+			if (!disclosure || !syncSession()) return;
+			disclosure.addEventListener("toggle", () => {
+				state.open = disclosure.open;
+				if (state.open) ensureLoaded();
+			});
+			disclosure.querySelectorAll("[data-owner-section]").forEach((button) => {
+				button.addEventListener("click", () => {
+					state.section = button.dataset.ownerSection;
+					disclosure.querySelectorAll("[data-owner-section]").forEach((tab) =>
+						tab.setAttribute("aria-pressed", String(tab.dataset.ownerSection === state.section)));
+					paint();
+					ensureLoaded();
+				});
+			});
+			wirePanel();
+			if (state.open) ensureLoaded();
+		}
+
+		function ensureLoaded() {
+			if (state.section === "activity" && state.activityStatus === "idle") void loadActivity();
+			if (state.section === "activity" && state.rosterStatus === "idle") void loadRoster();
+			if (state.section === "beta" && state.accessStatus === "idle") void loadAccess();
+			if (state.section === "reports" && state.reportsStatus === "idle") void loadReports();
+		}
+
+		function paint() {
+			if (!identity || ownerKey() !== identity) return;
+			const panel = doc?.getElementById("owner-panel");
+			if (!panel) return;
+			const focus = panel.contains(doc.activeElement) ? doc.activeElement.id : "";
+			panel.innerHTML = panelHtml();
+			wirePanel();
+			if (focus) doc.getElementById(focus)?.focus({ preventScroll: true });
+		}
+
+		function panelHtml() {
+			return state.section === "reports" ? reportsHtml() : state.section === "beta" ? betaHtml() : activityHtml();
+		}
+
+		function notice(message, error = false) {
+			return `<p class="notice ${error ? "warning" : ""}" role="${error ? "alert" : "status"}">${esc(message)}</p>`;
+		}
+
+		function activityHtml() {
+			const data = state.activity;
+			return `<section class="panel owner-activity" aria-labelledby="owner-activity-title">
+				<div class="panel-head"><div><p class="eyebrow">Owner only</p><h2 id="owner-activity-title">Recorded account activity</h2>
+					<p>Existing operational records, not pageviews or live presence. Background work is not proof that someone was online.</p></div></div>
+				<div class="owner-filters">
+					<label>Recent period<select id="owner-days"><option value="7" ${state.days === "7" ? "selected" : ""}>Last 7 UTC days</option><option value="28" ${state.days === "28" ? "selected" : ""}>Last 28 UTC days</option></select></label>
+					<button id="owner-refresh" class="secondary">Refresh activity</button>
+				</div>
+				${state.activityError ? notice(state.activityError, true) : ""}
+				${state.activityStatus === "loading" ? notice("Loading recorded activity...") : ""}
+				${rosterHtml()}
+				${data && state.activityStatus === "ready" ? `
+					<p class="owner-period">From ${esc(date(data.period.from))} through ${esc(date(data.period.asOf))}. Refresh explicitly for newer events.</p>
+					<div class="owner-metrics">
+						${metric("Registered accounts", data.summary.accounts, "Non-deleted accounts as of this snapshot")}
+						${metric("Accounts with events", data.summary.accountsWithEvents, "At least one record in this period")}
+						${metric("Recorded events", data.summary.total, "Operational actions, not visits")}
+						${metric("AI search issues", data.summary.searchIssues, "Recorded limited, unavailable or failed AI searches, including legacy fallback attempts")}
+					</div>
+					<h3 id="owner-accounts-title">Registered accounts in this snapshot</h3>
+					<p>Counts are recorded actions, not current saved-job or draft totals. Access reflects the grant at this page's last refresh, not the historical period.</p>
+					${data.accounts.length ? `<div class="owner-table-scroll" role="region" aria-labelledby="owner-accounts-title" tabindex="0">
+						<table class="owner-accounts-table">
+							<thead><tr><th scope="col">Account</th><th scope="col">Access at refresh</th><th scope="col">All events</th><th scope="col">People searches</th><th scope="col">Job saves</th><th scope="col">Tracker changes</th><th scope="col">Draft changes</th><th scope="col">Sends</th><th scope="col">Last recorded event</th><th scope="col">Filter</th></tr></thead>
+							<tbody>${data.accounts.map((account) => `<tr>
+								<th scope="row"><strong>${esc(account.name || "Registered account")}</strong><small>${esc(account.email)}</small></th>
+								<td>${esc(accessLabel(account.currentAccess))}</td>
+								${["total", "peopleSearches", "jobSaves", "trackerChanges", "draftChanges", "outreachSends"].map((key) => `<td>${number(account.counts[key])}</td>`).join("")}
+								<td>${account.lastRecordedEventAt ? esc(date(account.lastRecordedEventAt)) : "No recorded activity in this period"}</td>
+								<td><button class="secondary" data-owner-user="${esc(account.id)}" aria-label="View events for ${esc(account.email)}">Events</button></td>
+							</tr>`).join("")}</tbody>
+						</table></div>` : notice("No registered accounts in this snapshot.")}
+					${pager("accounts", state.accountCursors.length, data.nextCursor, data.pageSize)}
+					${eventsHtml()}
+				` : ""}
+				<p class="owner-privacy-note">Only basic account identifiers, action counts, timestamps and allowlisted search outcomes are shown. No private content, credentials, recipient details, search queries or raw event metadata. Failures not recorded in the audit log are not counted. <a href="/privacy.html">Privacy policy</a></p>
+			</section>`;
+		}
+
+		function accessLabel(access) {
+			if (!access) return "Access not loaded";
+			const label = { ADMIN: "Configured owner", OPEN: "Open mode", APPROVED: "Access granted", REVOKED: "Access revoked", NOT_GRANTED: "No current grant" }[access.status] || "Access not loaded";
+			return access.approvalStatus === "REVOKED" && ["ADMIN", "OPEN"].includes(access.status) ? `${label} · approval revoked` : label;
+		}
+
+		function rosterHtml() {
+			const data = state.roster;
+			return `<section class="owner-roster" aria-labelledby="owner-roster-title">
+				<div class="panel-head"><div><h3 id="owner-roster-title">Current named access</h3><p>Access grants are not account registrations or recorded visits.</p></div><button id="owner-roster-refresh" class="secondary">Refresh access roster</button></div>
+				${state.rosterStatus === "loading" ? notice("Loading current access roster...") : ""}
+				${state.rosterError ? notice(state.rosterError, true) : ""}
+				${data && state.rosterStatus === "ready" ? `
+					<p>Current as of ${esc(date(data.fetchedAt))}, separate from the activity period below.${data.mode === "OPEN" ? " Open mode does not use a finite address allowlist; verification and account restrictions still apply, and named entries are not a count of everyone who can access." : ""}</p>
+					<div class="owner-metrics">
+						${metric("Named access grants", data.summary.namedGrants, "Approved addresses plus configured owners, deduplicated")}
+						${metric("Registered entries", data.summary.registeredEntries, "Named addresses with a current registered account")}
+						${metric("No current account", data.summary.noCurrentAccountEntries, `${data.summary.deletedAccountEntries ? `${data.summary.deletedAccountEntries} deleted ${data.summary.deletedAccountEntries === 1 ? "account" : "accounts"} included. ` : ""}Registration does not measure visits.`)}
+					</div>
+					<p>${number(data.summary.approvedEmailEntries)} approved email ${data.summary.approvedEmailEntries === 1 ? "entry" : "entries"}; ${number(data.summary.configuredOwners)} configured owner ${data.summary.configuredOwners === 1 ? "identity" : "identities"}. Owners may overlap approved entries.</p>
+					${data.entries.length ? `<div class="owner-table-scroll" role="region" aria-labelledby="owner-roster-title" tabindex="0"><table class="owner-accounts-table">
+						<thead><tr><th scope="col">Address</th><th scope="col">Access source</th><th scope="col">Registration</th></tr></thead>
+						<tbody>${data.entries.map((entry) => `<tr><th scope="row">${esc(entry.email)}</th><td>${entry.source === "OWNER_AND_APPROVAL" ? "Owner and approval" : entry.source === "OWNER" ? "Configured owner" : entry.source === "EMAIL_VERIFIED" ? "Email-verified signup" : entry.source === "EXISTING_ACCOUNT" ? "Existing registered account" : "Access granted"}</td><td>${entry.registration === "REGISTERED" ? `Registered${entry.name ? ` · ${esc(entry.name)}` : ""}` : entry.registration === "DELETED" ? "Deleted account · named access remains" : "No current registered account"}</td></tr>`).join("")}</tbody>
+					</table></div>` : notice("No current named access grants.")}
+					${pager("roster", state.rosterCursors.length, data.nextCursor, data.pageSize)}
+				` : ""}
+			</section>`;
+		}
+
+		async function loadRoster(reset = false) {
+			if (!syncSession()) return;
+			const turn = generation;
+			if (reset) state.rosterCursors = [null];
+			state.roster = null;
+			state.rosterStatus = "loading";
+			state.rosterError = "";
+			paint();
+			const query = new URLSearchParams();
+			if (state.rosterCursors.at(-1)) query.set("cursor", state.rosterCursors.at(-1));
+			try {
+				const result = await call("roster", `/api/beta/admin/activity/access${query.size ? `?${query}` : ""}`);
+				if (!result || turn !== generation || ownerKey() !== identity) return;
+				if (!Array.isArray(result.entries) || !["OPEN", "ALLOWLIST"].includes(result.mode) ||
+					!["namedGrants", "registeredEntries", "noCurrentAccountEntries", "deletedAccountEntries", "approvedEmailEntries", "configuredOwners"]
+						.every((key) => Number.isInteger(result.summary?.[key]) && result.summary[key] >= 0)) {
+					throw new Error("Current access roster could not be read. Refresh it.");
+				}
+				state.roster = result;
+				state.rosterStatus = "ready";
+			} catch (error) {
+				state.rosterStatus = "error";
+				state.rosterError = `Could not refresh current access: ${error.message}`;
+			}
+			paint();
+		}
+
+		function metric(label, value, hint) {
+			return `<div class="owner-metric"><span>${esc(label)}</span><strong>${number(value)}</strong><small>${esc(hint)}</small></div>`;
+		}
+
+		function reportsHtml() {
+			const data = state.reports;
+			return `<section class="panel" aria-labelledby="owner-reports-title">
+				<div class="panel-head"><div><h2 id="owner-reports-title">Bug reports inbox</h2><p>Reports shared by signed-in members. No email is sent.</p></div><button id="owner-reports-refresh" class="secondary">Refresh reports</button></div>
+				<label>Status<select id="owner-report-status">${["OPEN", "RESOLVED", "ALL"].map((status) => `<option value="${status}" ${state.reportFilter === status ? "selected" : ""}>${status === "ALL" ? "All reports" : status === "OPEN" ? "Open" : "Resolved"}</option>`).join("")}</select></label>
+				${state.reportsStatus === "loading" ? notice("Loading bug reports...") : ""}
+				${state.reportsError ? notice(state.reportsError, true) : ""}
+				${data && state.reportsStatus === "ready" ? `
+					<p>${number(data.counts.open)} open; ${number(data.counts.resolved)} resolved.</p>
+					${data.reports.length ? data.reports.map((report) => `<article class="card">
+						<h3>${esc(report.summary)}</h3><p>${esc(report.reporter.name)} · ${esc(report.reporter.email)} · ${esc(date(report.createdAt))}</p>
+						<p>Page: ${esc(report.page)} · ${esc(report.status.toLowerCase())}</p>
+						<p class="bug-report-copy">${esc(report.description)}</p>
+						<button class="secondary" data-report-status="${report.status === "OPEN" ? "RESOLVED" : "OPEN"}" data-report-id="${esc(report.id)}" ${state.reportsMutating ? "disabled" : ""}>${report.status === "OPEN" ? "Mark resolved" : "Reopen"}</button>
+					</article>`).join("") : notice("No reports match this status.")}
+					${pager("reports", state.reportCursors.length, data.nextCursor, data.pageSize)}
+				` : ""}
+			</section>`;
+		}
+
+		async function loadReports(reset = false) {
+			if (!syncSession()) return;
+			const turn = generation;
+			if (reset) state.reportCursors = [null];
+			state.reports = null;
+			state.reportsStatus = "loading";
+			state.reportsError = "";
+			paint();
+			const query = new URLSearchParams({ status: state.reportFilter });
+			if (state.reportCursors.at(-1)) query.set("cursor", state.reportCursors.at(-1));
+			try {
+				const result = await call("reports", `/api/beta/admin/bug-reports?${query}`);
+				if (!result || turn !== generation || ownerKey() !== identity) return;
+				if (!Array.isArray(result.reports) || !Number.isInteger(result.counts?.open) || !Number.isInteger(result.counts?.resolved)) {
+					throw new Error("Bug report inbox could not be read. Refresh reports.");
+				}
+				state.reports = result;
+				state.reportsStatus = "ready";
+			} catch (error) {
+				state.reportsStatus = "error";
+				state.reportsError = `Could not load reports: ${error.message}`;
+			}
+			paint();
+		}
+
+		async function setReportStatus(id, status) {
+			if (!syncSession() || state.reportsMutating) return;
+			const turn = generation;
+			state.reportsMutating = true;
+			state.reportsError = "";
+			paint();
+			try {
+				const result = await call("report-update", `/api/beta/admin/bug-reports/${id}`, { method: "PATCH", body: { status } });
+				if (!result || turn !== generation || ownerKey() !== identity) return;
+				if (result.id !== id || result.status !== status) throw new Error("Report status was not confirmed. Refresh reports.");
+				await loadReports(true);
+			} catch (error) {
+				state.reportsError = `Report status could not be saved: ${error.message}`;
+			} finally {
+				if (turn === generation) { state.reportsMutating = false; paint(); }
+			}
+		}
+
+		function eventsHtml() {
+			const users = new Map(state.activity.accounts.map((account) => [account.id, account]));
+			if (state.userFilter) users.set(state.userFilter.id, state.userFilter);
+			return `<section class="owner-events" aria-labelledby="owner-events-title">
+				<h3 id="owner-events-title">Recent recorded events</h3>
+				<div class="owner-filters">
+					<label>Account<select id="owner-user-filter"><option value="">All registered accounts</option>${[...users.values()].map((account) => `<option value="${esc(account.id)}" ${state.userFilter?.id === account.id ? "selected" : ""}>${esc(account.email)}</option>`).join("")}</select><small>Account choices follow the account page above.</small></label>
+					<label>Action<select id="owner-action-filter">${state.activity.actions.map((action) => `<option value="${esc(action.value)}" ${state.action === action.value ? "selected" : ""}>${esc(action.label)}</option>`).join("")}</select></label>
+					<button id="owner-events-reset" class="secondary">Clear filters</button>
+				</div>
+				${state.eventsStatus === "loading" ? notice("Loading recent events...") : ""}
+				${state.eventsError ? `${notice(state.eventsError, true)}<button id="owner-events-retry" class="secondary">Retry events</button>` : ""}
+				${state.eventsStatus === "ready" && state.events ? `
+					${state.events.events.length ? `<ol class="owner-event-list">${state.events.events.map((event) => `<li>
+						<div><strong>${esc(event.label)}</strong><span>${esc(event.user.name || "Registered account")} &middot; ${esc(event.user.email)}</span>
+							${event.searchFallback ? `<small>AI search: ${esc(event.searchFallback.status.toLowerCase().replaceAll("_", " "))}${event.searchFallback.provider ? ` (${esc(event.searchFallback.provider)})` : ""}${event.searchFallback.reason ? ` &middot; ${esc(event.searchFallback.reason.replaceAll("_", " "))}` : ""}</small>` : ""}
+						</div><time datetime="${esc(event.recordedAt)}">${esc(date(event.recordedAt))}</time>
+					</li>`).join("")}</ol>` : notice("No recorded events match this period and these filters.")}
+					${pager("events", state.eventCursors.length, state.events.nextCursor, state.events.pageSize)}
+				` : ""}
+			</section>`;
+		}
+
+		function pager(kind, page, next, size) {
+			return `<nav class="owner-pagination" aria-label="${kind === "roster" ? "Access roster" : kind === "accounts" ? "Account" : "Event"} pages">
+				<button id="owner-${kind}-previous" class="secondary" ${page === 1 ? "disabled" : ""}>Previous</button>
+				<span>Page ${page} &middot; up to ${size} ${kind} per page</span>
+				<button id="owner-${kind}-next" class="secondary" ${next ? "" : "disabled"}>Next</button>
+			</nav>`;
+		}
+
+		async function loadActivity(reset = false) {
+			if (!syncSession()) return;
+			const turn = generation;
+			if (reset) {
+				state.asOf = "";
+				state.accountCursors = [null];
+				state.eventCursors = [null];
+				state.events = null;
+				state.eventsStatus = "idle";
+				requests.get("events")?.abort();
+			}
+			state.activity = null;
+			state.activityStatus = "loading";
+			state.activityError = "";
+			paint();
+			const query = new URLSearchParams({ days: state.days });
+			if (state.asOf) query.set("asOf", state.asOf);
+			if (state.accountCursors.at(-1)) query.set("cursor", state.accountCursors.at(-1));
+			try {
+				const result = await call("activity", `/api/beta/admin/activity?${query}`);
+				if (!result || turn !== generation || ownerKey() !== identity) return;
+				state.activity = result;
+				state.asOf = result.period.asOf;
+				state.activityStatus = "ready";
+				paint();
+				if (state.eventsStatus === "idle") await loadEvents();
+			} catch (error) {
+				state.activityStatus = "error";
+				state.activityError = error.message;
+				paint();
+			}
+		}
+
+		async function loadEvents() {
+			if (!syncSession() || !state.activity) return;
+			const turn = generation;
+			state.eventsStatus = "loading";
+			state.eventsError = "";
+			state.events = null;
+			paint();
+			const query = new URLSearchParams({ days: state.days, asOf: state.asOf, action: state.action });
+			if (state.userFilter) query.set("userId", state.userFilter.id);
+			if (state.eventCursors.at(-1)) query.set("cursor", state.eventCursors.at(-1));
+			try {
+				const result = await call("events", `/api/beta/admin/activity/events?${query}`);
+				if (!result || turn !== generation || ownerKey() !== identity) return;
+				state.events = result;
+				state.eventsStatus = "ready";
+			} catch (error) {
+				state.eventsStatus = "error";
+				state.eventsError = error.message;
+			}
+			paint();
+		}
+
+		function betaHtml() {
+			const data = state.access;
+			const pending = data?.requests.filter((entry) => entry.status === "PENDING") || [];
+			const denied = data?.requests.filter((entry) => entry.status === "DENIED") || [];
+			const approved = data?.access.filter((entry) => entry.status === "APPROVED") || [];
+			const revoked = data?.access.filter((entry) => entry.status === "REVOKED") || [];
+			const disabled = state.mutating || state.accessStatus !== "ready";
+			const total = data?.pendingTotal;
+			const limit = data?.approvalBatchLimit;
+			return `<section class="panel" aria-labelledby="owner-beta-title">
+				<div class="panel-head"><div><p class="eyebrow">Owner only</p><h2 id="owner-beta-title">Account access</h2><p>${data?.selfServiceSignup ? "Email-confirmed Google signups enter automatically. These controls manage invitations, restrictions and restoration, not owner permissions or outreach approval." : "These controls grant sign-in and workspace access, not owner permissions or outreach approval."} Owner identities come only from the server's <code>BETA_ADMIN_EMAILS</code>.</p></div><button id="owner-access-refresh" class="secondary" ${state.mutating ? "disabled" : ""}>Refresh access</button></div>
+				${state.accessStatus === "loading" ? notice("Loading beta access...") : ""}
+				${state.accessError ? notice(state.accessError, true) : ""}
+				${state.mutationError ? notice(state.mutationError, true) : ""}
+				${state.result ? resultHtml(state.result) : ""}
+				<label class="check-row"><input id="owner-notify-email" type="checkbox" ${notifyByEmail() ? "checked" : ""} ${disabled || !data?.gmailConfigured || state.bulk ? "disabled" : ""} />Notify by email for new approvals</label>
+				<p>${data?.gmailConfigured ? "Uses your connected Gmail account. Future new grants only; already-approved entries are not emailed." : "Connect your Gmail in Setup &amp; profile to send acceptance notices. Access approval still works without email."}</p>
+				${data?.selfServiceSignup ? "<p>These optional notices apply only to owner-issued approvals. Automatic verified signup does not queue an acceptance email.</p>" : ""}
+				${data?.acceptanceTemplate ? `<details><summary>Preview acceptance email</summary><p><strong>Subject:</strong> ${esc(data.acceptanceTemplate.subject)}</p><p class="bug-report-copy">${esc(data.acceptanceTemplate.body)}</p></details>` : ""}
+				<p>Up to five pending notices are processed just after approval; remaining notices are checked in batches of five about every 15 minutes. Bulk approvals may need several cycles. Sent means Gmail accepted the message, not confirmed delivery. Revoking access stops queued notices, but cannot recall a send already started.</p>
+				<form id="beta-approve-email-form" class="beta-invite-form">
+					<label>Approve or re-approve an email<input id="beta-approve-email" type="email" maxlength="320" autocomplete="off" required ${disabled ? "disabled" : ""} /></label>
+					<button class="primary" ${disabled ? "disabled" : ""}>Approve email</button>
+				</form>
+				<div class="panel-head owner-pending-heading"><div><h3>Pending requests${total === undefined ? "" : ` (${number(total)})`}</h3><p>${data?.selfServiceSignup ? "Earlier applicants can enter after email confirmation and Google sign-in; ordinary verified signup needs no manual approval. Explicit denials and revocations still require owner review." : "Only verified, currently pending requests are eligible. You will review the exact accounts before confirming."}</p></div>
+					<button id="beta-approve-all" class="primary" ${disabled || !total || state.bulk ? "disabled" : ""}>${total === undefined ? "Approve all pending" : total > limit ? `Review pending batch (${limit} of ${number(total)})` : `Approve all pending (${number(total)})`}</button>
+				</div>
+				${data ? `<p class="owner-privacy-note">At most ${limit} requests per confirmation. Larger queues need separate, explicitly reviewed batches. Administrative lists show up to ${data.listLimit} records each; the pending count includes every pending request. Showing ${pending.length} of ${number(total)} pending requests below.</p>` : ""}
+				${state.accessStatus === "ready" ? `
+					${cards(pending.map((entry) => requestCard(entry, disabled)), "No access requests are pending.")}
+					<h3>Enabled access</h3>${cards(approved.map((entry) => accessCard(entry, disabled)), "No named access entries are enabled. Configured owners remain authorized separately.")}
+					<h3>Revoked and denied</h3><p>Re-approve only after reviewing the original decision. Revocation terminates active sessions for that email.</p>
+					${cards([...revoked.map((entry) => accessCard(entry, disabled)), ...denied.map((entry) => requestCard(entry, disabled))], "No revoked or denied entries.")}
+				` : ""}
+			</section>`;
+		}
+
+		function cards(entries, empty) {
+			return entries.length ? `<div class="cards owner-access-cards">${entries.join("")}</div>` : notice(empty);
+		}
+
+		function requestCard(entry, disabled) {
+			return `<article class="card"><h4>${esc(entry.email)}</h4><p>Requested ${esc(date(entry.requestedAt))} &middot; ${esc(entry.status.toLowerCase())}</p><div class="actions">
+				${entry.status === "PENDING" ? `<button class="primary" data-beta-approve-request="${esc(entry.id)}" ${disabled ? "disabled" : ""}>Approve</button><button class="danger" data-beta-deny-request="${esc(entry.id)}" ${disabled ? "disabled" : ""}>Deny</button>` : `<button class="secondary" data-beta-approve-email="${esc(entry.email)}" ${disabled ? "disabled" : ""}>Re-approve email</button>`}
+			</div></article>`;
+		}
+
+		function accessCard(entry, disabled) {
+			return `<article class="card"><h4>${esc(entry.email)}</h4><p>Updated ${esc(date(entry.updatedAt))} &middot; ${esc(entry.status.toLowerCase())}${entry.grantSource === "EMAIL_VERIFIED" ? " &middot; email-verified signup" : entry.grantSource === "EXISTING_ACCOUNT" ? " &middot; existing registered account" : ""}</p><div class="actions">
+				${entry.status === "APPROVED" ? `<button class="danger" data-beta-revoke-email="${esc(entry.email)}" ${disabled ? "disabled" : ""}>Revoke</button>` : `<button class="secondary" data-beta-approve-email="${esc(entry.email)}" ${disabled ? "disabled" : ""}>Re-approve email</button>`}
+			</div>${notificationHtml(entry, disabled)}</article>`;
+		}
+
+		function notifyByEmail() {
+			return state.access?.gmailConfigured === true && state.notifyEmail !== false;
+		}
+
+		function notificationHtml(entry, disabled) {
+			const n = entry.notification;
+			if (!n) return "<p>No acceptance email requested for this grant.</p>";
+			const labels = {
+				QUEUED: "Acceptance email pending.",
+				SENDING: "Acceptance email sending; outcome not yet confirmed.",
+				SENT: "Acceptance email sent via Gmail. Delivery is not confirmed.",
+				FAILED: n.failureCode === "GMAIL_NOT_CONNECTED" ? "Acceptance email not sent. Connect Gmail, then retry." :
+					"Acceptance email not sent. Check the approving owner's Gmail connection or daily limit before retrying.",
+				UNCERTAIN: "Acceptance email outcome uncertain. The approving owner must check Gmail Sent; do not resend.",
+				CANCELLED: "Acceptance email cancelled because the grant or sender changed.",
+			};
+			return `<p>${esc(labels[n.status] || "Acceptance email status unavailable. Refresh access.")}${n.sentAt ? ` ${esc(date(n.sentAt))}` : ""}</p>
+				${n.status === "FAILED" && n.senderIsYou && entry.status === "APPROVED" ? `<button class="secondary" data-beta-retry-notice="${esc(n.id)}" aria-label="Retry acceptance email for ${esc(entry.email)}" ${disabled || !state.access?.gmailConfigured ? "disabled" : ""}>Retry acceptance email</button>` : ""}
+				${n.status === "FAILED" && !n.senderIsYou ? "<p>Only the approving owner can retry this notice.</p>" : ""}`;
+		}
+
+		async function loadAccess() {
+			if (!syncSession()) return;
+			const turn = generation;
+			state.accessStatus = "loading";
+			state.accessError = "";
+			paint();
+			try {
+				const result = await call("access", "/api/beta/admin/access");
+				if (!result || turn !== generation || ownerKey() !== identity) return;
+				state.access = result;
+				state.accessStatus = "ready";
+			} catch (error) {
+				state.accessStatus = "error";
+				state.accessError = `Could not refresh beta access: ${error.message}`;
+			}
+			paint();
+		}
+
+		async function mutate(path, body, message) {
+			if (!syncSession() || state.mutating) return;
+			const turn = generation;
+			state.mutating = true;
+			state.mutationError = "";
+			state.result = null;
+			paint();
+			try {
+				const result = await call("mutation", path, { method: "POST", body });
+				if (!result || turn !== generation || ownerKey() !== identity) return;
+				options.notify(message);
+				invalidateActivity();
+				await loadAccess();
+			} catch (error) {
+				state.mutationError = `${error.message} Refresh access before trying again.`;
+			} finally {
+				if (turn === generation) {
+					state.mutating = false;
+					paint();
+				}
+			}
+		}
+
+		function invalidateActivity() {
+			requests.get("activity")?.abort();
+			requests.get("events")?.abort();
+			state.activity = state.events = null;
+			state.activityStatus = state.eventsStatus = "idle";
+			state.asOf = "";
+			state.accountCursors = state.eventCursors = [null];
+			requests.get("roster")?.abort();
+			state.roster = null;
+			state.rosterStatus = "idle";
+			state.rosterCursors = [null];
+		}
+
+		async function openBulk() {
+			if (!syncSession() || state.bulk || state.mutating) return;
+			state.bulk = { status: "loading", review: null, error: "", notifyEmail: notifyByEmail(), expectedSenderId: options.getSession().user.id };
+			modal = doc.createElement("dialog");
+			modal.id = "owner-bulk-dialog";
+			modal.className = "owner-bulk-dialog";
+			modal.tabIndex = -1;
+			modal.setAttribute("aria-labelledby", "owner-bulk-title");
+			modal.setAttribute("aria-describedby", "owner-bulk-description");
+			modal.addEventListener("cancel", (event) => {
+				if (state.bulk?.status === "submitting") event.preventDefault();
+			});
+			modal.addEventListener("keydown", (event) => {
+				if (event.key !== "Tab") return;
+				const buttons = [...modal.querySelectorAll("button:not([disabled])")];
+				const first = buttons[0];
+				const last = buttons.at(-1);
+				if (!first || (!event.shiftKey && doc.activeElement === last) ||
+					(event.shiftKey && doc.activeElement === first) || doc.activeElement === modal) {
+					event.preventDefault();
+					(event.shiftKey ? last : first)?.focus();
+				}
+			});
+			const openedModal = modal;
+			modal.addEventListener("close", () => { if (modal === openedModal) closeDialog(); });
+			doc.body.append(modal);
+			paintBulk();
+			modal.showModal();
+			doc.getElementById("owner-bulk-cancel")?.focus();
+			paint();
+			try {
+				const review = await call("snapshot", "/api/beta/admin/requests/pending");
+				if (!review || !state.bulk) return;
+				state.bulk.review = review;
+				state.bulk.status = "review";
+				paintBulk();
+			} catch (error) {
+				if (!state.bulk) return;
+				state.bulk.status = "error";
+				state.bulk.error = `${error.message} Close and review pending requests again.`;
+				paintBulk();
+			}
+		}
+
+		function paintBulk() {
+			if (!modal || !state.bulk) return;
+			const bulk = state.bulk;
+			const review = bulk.review;
+			const submitting = bulk.status === "submitting";
+			const focus = modal.contains(doc.activeElement) ? doc.activeElement.id : "";
+			modal.innerHTML = `<div class="dialog-card">
+				<div class="dialog-head"><div><p class="eyebrow">Beta access only</p><h2 id="owner-bulk-title">${bulk.status === "complete" ? "Approval results" : "Review pending approvals"}</h2></div></div>
+				<p id="owner-bulk-description">Grant private-beta sign-in and workspace access only to the accounts listed here. This does not grant owner permissions, approve outreach, or approve future applicants. ${bulk.notifyEmail ? "Each new grant also queues the previewed acceptance email from your Gmail." : "No acceptance emails are requested."}</p>
+				${bulk.status === "loading" ? notice("Loading the current pending-request snapshot...") : ""}
+				${bulk.error ? notice(bulk.error, true) : ""}
+				${bulk.status === "complete" ? resultHtml(state.result) : review ? `
+					<strong>${review.requests.length} reviewed of ${number(review.pendingTotal)} pending${review.hasMore ? ` &mdash; this batch is limited to ${review.batchLimit}` : ""}.</strong>
+					<p>Requests that arrive later are excluded. Changed or already-handled requests will be skipped. This review expires ${esc(date(review.expiresAt))}.</p>
+					${review.requests.length ? `<ul class="owner-approval-list">${review.requests.map((entry) => `<li><strong>${esc(entry.email)}</strong><span>Requested ${esc(date(entry.requestedAt))}</span>${entry.reapplication ? `<strong class="owner-reapplication">${entry.reapplication === "REVOKED_ACCESS" ? "New request after revoked access: this restores beta access." : "New request after an earlier denial: this grants beta access."}</strong>` : ""}</li>`).join("")}</ul>` : notice("No requests are pending. No accounts will be approved.")}
+				` : ""}
+				${submitting ? notice("Approving only this reviewed set. Please wait for the result.") : ""}
+				<div class="actions owner-dialog-actions">
+					<button id="owner-bulk-cancel" class="secondary" ${submitting ? "disabled" : ""}>${bulk.status === "complete" ? "Close" : "Cancel"}</button>
+					${bulk.status !== "complete" ? `<button id="owner-bulk-confirm" class="primary" ${!review?.requests.length || submitting ? "disabled" : ""}>${submitting ? "Approving..." : bulk.error && review ? `Retry these ${review.requests.length} accounts` : `Approve these ${review?.requests.length || 0} accounts`}</button>` : ""}
+				</div>
+			</div>`;
+			doc.getElementById("owner-bulk-cancel")?.addEventListener("click", () => closeDialog());
+			doc.getElementById("owner-bulk-confirm")?.addEventListener("click", submitBulk);
+			if (focus) doc.getElementById(focus)?.focus({ preventScroll: true });
+			if (submitting) modal.focus({ preventScroll: true });
+		}
+
+		async function submitBulk() {
+			const bulk = state.bulk;
+			if (!syncSession() || !bulk?.review?.requests.length || bulk.status === "submitting" || bulk.status === "complete") return;
+			bulk.status = "submitting";
+			bulk.error = "";
+			state.mutating = true;
+			paintBulk();
+			paint();
+			try {
+				const result = await call("mutation", "/api/beta/admin/requests/approve-pending", {
+					method: "POST",
+					body: { snapshot: bulk.review.snapshot, requestIds: bulk.review.requests.map((entry) => entry.id), notifyEmail: bulk.notifyEmail, expectedSenderId: bulk.expectedSenderId },
+				});
+				if (!result || state.bulk !== bulk) return;
+				const emails = new Map(bulk.review.requests.map((entry) => [entry.id, entry.email]));
+				state.result = {
+					approved: result.approved.length, reviewed: result.reviewed,
+					skipped: result.skipped.map((entry) => emails.get(entry.id)),
+					notificationsQueued: result.notificationsQueued || 0,
+				};
+				bulk.status = "complete";
+				state.mutating = false;
+				invalidateActivity();
+				paintBulk();
+				doc.getElementById("owner-bulk-cancel")?.focus();
+				await loadAccess();
+			} catch (error) {
+				if (state.bulk !== bulk) return;
+				bulk.status = "review";
+				bulk.error = `${error.message} The result was not confirmed. You can retry this same reviewed set; requests already handled will be skipped. An expired review must be closed and reviewed again.`;
+				state.mutating = false;
+				paintBulk();
+			}
+			paint();
+		}
+
+		function resultHtml(result) {
+			return `<div class="owner-approval-result" role="status"><strong>${number(result.approved)} approved; ${number(result.skipped.length)} skipped out of ${number(result.reviewed)} reviewed.</strong>
+				<p>${number(result.notificationsQueued || 0)} acceptance notices requested. Check each grant's email status below; queuing is not delivery.</p>
+				${result.skipped.length ? `<p>Skipped because the request or access changed, or was already handled. No new approval was made for:</p><ul>${result.skipped.map((email) => `<li>${esc(email)}</li>`).join("")}</ul>` : "<p>Beta access was granted only to the reviewed pending accounts.</p>"}
+			</div>`;
+		}
+
+		function closeDialog(force = false) {
+			if (!force && state.bulk?.status === "submitting") return;
+			requests.get("snapshot")?.abort();
+			const previous = modal;
+			modal = null;
+			state.bulk = null;
+			if (previous?.open) previous.close();
+			previous?.remove();
+			if (!force) {
+				paint();
+				const opener = doc?.getElementById("beta-approve-all");
+				(opener && !opener.disabled ? opener : doc?.getElementById("owner-beta-tab"))?.focus({ preventScroll: true });
+			}
+		}
+
+		function wirePanel() {
+			const on = (id, event, handler) => doc?.getElementById(id)?.addEventListener(event, handler);
+			on("owner-days", "change", (event) => {
+				state.days = event.target.value;
+				void loadActivity(true);
+			});
+			on("owner-refresh", "click", () => { void loadActivity(true); void loadRoster(true); });
+			on("owner-roster-refresh", "click", () => void loadRoster(true));
+			on("owner-roster-previous", "click", () => { if (state.rosterCursors.length > 1) state.rosterCursors.pop(); void loadRoster(); });
+			on("owner-roster-next", "click", () => { if (state.roster?.nextCursor) { state.rosterCursors.push(state.roster.nextCursor); void loadRoster(); } });
+			on("owner-reports-refresh", "click", () => void loadReports(true));
+			on("owner-report-status", "change", (event) => { state.reportFilter = event.target.value; void loadReports(true); });
+			on("owner-reports-previous", "click", () => { if (state.reportCursors.length > 1) state.reportCursors.pop(); void loadReports(); });
+			on("owner-reports-next", "click", () => { if (state.reports?.nextCursor) { state.reportCursors.push(state.reports.nextCursor); void loadReports(); } });
+			doc?.querySelectorAll("[data-report-id]").forEach((button) => button.addEventListener("click", () => void setReportStatus(button.dataset.reportId, button.dataset.reportStatus)));
+			on("owner-access-refresh", "click", () => void loadAccess());
+			on("owner-notify-email", "change", (event) => { state.notifyEmail = event.target.checked; });
+			doc?.querySelectorAll("[data-beta-retry-notice]").forEach((button) => button.addEventListener("click", () => {
+				const id = button.dataset.betaRetryNotice;
+				const entry = state.access?.access.find((entry) => entry.notification?.id === id);
+				if (entry && confirm(`Retry the confirmed unsent acceptance email for ${entry.email} using your Gmail?`)) {
+					void mutate(`/api/beta/admin/notifications/${id}/retry`, {}, "Acceptance email queued. Check its status; delivery is not yet confirmed.");
+				}
+			}));
+			on("owner-events-retry", "click", () => void loadEvents());
+			for (const kind of ["accounts", "events"]) {
+				on(`owner-${kind}-previous`, "click", () => {
+					const cursors = kind === "accounts" ? state.accountCursors : state.eventCursors;
+					if (cursors.length > 1) cursors.pop();
+					void (kind === "accounts" ? loadActivity() : loadEvents());
+				});
+				on(`owner-${kind}-next`, "click", () => {
+					const cursor = kind === "accounts" ? state.activity?.nextCursor : state.events?.nextCursor;
+					if (!cursor) return;
+					(kind === "accounts" ? state.accountCursors : state.eventCursors).push(cursor);
+					void (kind === "accounts" ? loadActivity() : loadEvents());
+				});
+			}
+			const filterEvents = () => { state.eventCursors = [null]; void loadEvents(); };
+			on("owner-user-filter", "change", (event) => {
+				state.userFilter = state.activity.accounts.find((account) => account.id === event.target.value) ||
+					(state.userFilter?.id === event.target.value ? state.userFilter : null);
+				filterEvents();
+			});
+			on("owner-action-filter", "change", (event) => { state.action = event.target.value; filterEvents(); });
+			on("owner-events-reset", "click", () => { state.userFilter = null; state.action = "ALL"; filterEvents(); });
+			doc?.querySelectorAll("[data-owner-user]").forEach((button) => button.addEventListener("click", () => {
+				state.userFilter = state.activity.accounts.find((account) => account.id === button.dataset.ownerUser);
+				filterEvents();
+				doc.getElementById("owner-user-filter")?.focus();
+			}));
+			on("beta-approve-all", "click", openBulk);
+			on("beta-approve-email-form", "submit", (event) => {
+				event.preventDefault();
+				if (!syncSession() || state.accessStatus !== "ready") return;
+				const email = doc.getElementById("beta-approve-email").value.trim();
+				const notifyEmail = notifyByEmail();
+				const expectedSenderId = options.getSession().user.id;
+				if (confirm(`Grant or restore private-beta access for ${email}? This overrides any earlier denial or revocation. ${notifyEmail ? "A new grant also queues the previewed acceptance email from your Gmail; already-approved entries are not emailed." : "No acceptance email will be sent."}`)) {
+					void mutate("/api/beta/admin/access/approve", { email, notifyEmail, expectedSenderId }, "Beta access approved. Check the separate acceptance email status below.");
+				}
+			});
+			for (const [attribute, action] of [
+				["beta-approve-request", "approve"], ["beta-deny-request", "deny"],
+				["beta-approve-email", "approve"], ["beta-revoke-email", "revoke"],
+			]) {
+				doc?.querySelectorAll(`[data-${attribute}]`).forEach((button) => button.addEventListener("click", () => {
+					if (!syncSession() || state.accessStatus !== "ready") return;
+					const value = button.getAttribute(`data-${attribute}`);
+					const byEmail = attribute.endsWith("email");
+					const notifyEmail = action === "approve" && notifyByEmail();
+					const expectedSenderId = options.getSession().user.id;
+					{
+						const email = byEmail ? value : state.access?.requests.find((entry) => entry.id === value)?.email;
+						const message = action === "revoke"
+							? `Revoke beta access for ${value}? Active sessions will end.`
+							: action === "approve" ? `Grant or restore beta access for ${email}? ${notifyEmail ? "A new grant also queues the previewed acceptance email from your Gmail." : "No acceptance email will be sent."}`
+								: "Deny this pending beta access request?";
+						if (!confirm(message)) return;
+					}
+					void mutate(byEmail ? `/api/beta/admin/access/${action}` : `/api/beta/admin/requests/${value}/${action}`,
+						byEmail ? { email: value, ...(action === "approve" ? { notifyEmail, expectedSenderId } : {}) } : action === "approve" ? { notifyEmail, expectedSenderId } : undefined, "Beta access decision saved. Email status is separate.");
+				}));
+			}
+		}
+
+		return { render, wire, syncSession, clear, closeDialog, loadAccess, loadActivity, loadRoster, loadReports, setReportStatus };
+	}
+
+	return { create };
+});

@@ -1,0 +1,12 @@
+# Placeholders only. This file contains no live values and does not configure production.
+# Tests/local synthetic preview tooling supply their own isolated dummy bindings.
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
+MASTER_ENCRYPTION_KEY_V1=""
+SESSION_SIGNING_KEY=""
+JOBS_INGEST_SECRET=""
+RESEND_API_KEY=""
+ENABLE_SIGNUP_EMAIL_VERIFICATION="false"
+ENABLE_JOB_OUTREACH_LINKING="false"
+BETA_ACCESS_MODE="ALLOWLIST"
+BETA_ADMIN_EMAILS=""

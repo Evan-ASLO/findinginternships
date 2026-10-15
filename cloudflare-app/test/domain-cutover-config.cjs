@@ -1,0 +1,23 @@
+const test = require("node:test"), assert = require("node:assert/strict"), fs = require("node:fs"), path = require("node:path");
+const root = path.join(__dirname, "..");
+test("final apex origin retains Worker alias/ingest/bindings and the dedicated exact Google-file path", () => {
+	const config = JSON.parse(fs.readFileSync(path.join(root, "wrangler.jsonc"), "utf8").replace(/^\s*\/\*[\s\S]*?\*\/\s*/, ""));
+	assert.equal(config.name, "coffee-chat-agent"); assert.equal(config.workers_dev, true);
+	assert.equal(config.vars.APP_ORIGIN, "https://findinginternships.com");
+	assert.deepEqual(config.routes, [{ pattern: "findinginternships.com", custom_domain: true }]);
+	assert.equal(config.d1_databases[0].database_id, "26471479-dd8c-4fdb-a1f0-490f5a00ed20");
+	assert.ok(config.assets.run_worker_first.includes("/"));
+	assert.ok(config.assets.run_worker_first.includes("/index.html"));
+	assert.ok(config.assets.run_worker_first.includes("/privacy"));
+	assert.ok(config.assets.run_worker_first.includes("/terms"));
+	assert.ok(config.assets.run_worker_first.includes("/api/*"));
+	assert.ok(config.assets.run_worker_first.includes("/auth/*"));
+	assert.ok(!config.assets.run_worker_first.includes("/*"));
+	assert.ok(config.assets.run_worker_first.includes("/google608a0386c4068490.html"));
+	assert.equal(config.assets.not_found_handling, "single-page-application");
+	assert.ok(!config.routes.some((route) => route.pattern.startsWith("www.")));
+	assert.ok(!config.vars.ENABLE_APOLLO_ENRICHMENT);
+	const verification = fs.readFileSync(path.join(root, "public", "google608a0386c4068490.html"));
+	assert.equal(require("node:crypto").createHash("sha256").update(verification).digest("hex"), "3d692211ec92cf7c98b5fde9d6286ae18264d6b891370a0bdcebd2ccdc5ff2fb");
+	assert.equal(verification.toString().trim(), "google-site-verification: google608a0386c4068490.html");
+});
